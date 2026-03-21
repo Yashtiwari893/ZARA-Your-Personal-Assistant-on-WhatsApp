@@ -1,5 +1,11 @@
 import { sendWhatsAppMessage as legacySender } from '../whatsappSender'
-import { supabase } from '../supabaseClient'
+import { createClient } from '@supabase/supabase-js'
+
+// Use admin client to bypass RLS and securely fetch sensitive credentials
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export type WhatsAppButton = {
   id: string
@@ -27,7 +33,7 @@ export async function sendWhatsAppMessage(options: SendMessageOptions) {
   let origin = process.env.WHATSAPP_ORIGIN
 
   // Try to find the specific bot number, or fallback to ANY available number if 'from' is omitted
-  let query = supabase.from('phone_document_mapping').select('auth_token, origin');
+  let query = supabaseAdmin.from('phone_document_mapping').select('auth_token, origin');
   if (from) {
       query = query.eq('phone_number', from);
   }
