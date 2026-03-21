@@ -60,8 +60,9 @@ If cannot parse: { "isoDateTime": null, "confidence": 0 }`
 
   try {
     const response = await groq.chat.completions.create({
-      model: 'llama3-8b-8192',
+      model: 'llama-3.1-8b-instant',
       max_tokens: 150,
+      response_format: { type: 'json_object' },
       temperature: 0.1,
       messages: [{ role: 'user', content: prompt }]
     })

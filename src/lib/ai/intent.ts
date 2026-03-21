@@ -68,8 +68,9 @@ export async function classifyIntent(
 ): Promise<IntentResult> {
   try {
     const response = await groq.chat.completions.create({
-      model: 'llama3-8b-8192',   // Fast + cheap for classification
+      model: 'llama-3.1-8b-instant',   // Fast + cheap for classification
       max_tokens: 200,
+      response_format: { type: 'json_object' },
       temperature: 0.1,           // Low temp = consistent classification
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
