@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@supabase/supabase-js";
+
+// Use service role key to bypass Row-Level Security (RLS) policies
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +22,7 @@ export async function POST(req: NextRequest) {
     console.log("Upserting phone settings for:", phone_number);
 
     // ─── UPSERT LOGIC (Works with or without file_id) ─────────
-    const { error: upsertError } = await supabase
+    const { error: upsertError } = await supabaseAdmin
       .from("phone_document_mapping")
       .upsert({
         phone_number,
