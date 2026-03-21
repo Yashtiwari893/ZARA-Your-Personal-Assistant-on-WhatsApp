@@ -23,17 +23,16 @@ export async function sendWhatsAppMessage(options: SendMessageOptions) {
   const { to, message, from, buttons, mediaUrl, mediaType } = options
 
   // 1. Resolve credentials
-  // If 'from' is not provided, we try to pick the first one from DB
-  const botNumber = from || 'default'
-  
-  const { data: mappings } = await supabase
-    .from('phone_document_mapping')
-    .select('auth_token, origin')
-    .eq('phone_number', botNumber)
-    .limit(1)
-
   let authToken = process.env.WHATSAPP_AUTH_TOKEN
   let origin = process.env.WHATSAPP_ORIGIN
+
+  // Try to find the specific bot number, or fallback to ANY available number if 'from' is omitted
+  let query = supabase.from('phone_document_mapping').select('auth_token, origin');
+  if (from) {
+      query = query.eq('phone_number', from);
+  }
+  
+  const { data: mappings } = await query.limit(1)
 
   if (mappings && mappings.length > 0) {
     authToken = mappings[0].auth_token
@@ -41,7 +40,7 @@ export async function sendWhatsAppMessage(options: SendMessageOptions) {
   }
 
   if (!authToken || !origin) {
-    console.error('WhatsApp credentials not found for bot:', botNumber)
+    console.error('WhatsApp credentials not found. Tried finding for bot:', from || 'any')
     return { success: false, error: 'Credentials missing' }
   }
 
