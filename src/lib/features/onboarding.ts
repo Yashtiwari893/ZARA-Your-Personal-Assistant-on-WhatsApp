@@ -43,21 +43,25 @@ export async function handleOnboarding(
 ) {
   const phone = user.phone
 
-  // STEP 1: No language set yet → send language picker
-  if (!buttonId && !incomingMessage.startsWith('lang_') && !incomingMessage.startsWith('terms_')) {
-    await sendWhatsAppMessage({
-      to: phone,
-      message: welcomeMessage(),
-      buttons: welcomeButtons()
-    })
-    return
+  const msgLower = incomingMessage.toLowerCase().trim()
+  
+  // Natural language mapping
+  let langSelect: Language | null = null
+  if (buttonId?.startsWith('lang_') || msgLower.startsWith('lang_')) {
+    langSelect = (buttonId ?? msgLower).replace('lang_', '') as Language
+  } else if (msgLower.includes('english') || msgLower === 'en') langSelect = 'en'
+  else if (msgLower.includes('hindi') || msgLower === 'hi') langSelect = 'hi'
+  else if (msgLower.includes('gujarati') || msgLower === 'gu') langSelect = 'gu'
+
+  let termsAccept = false
+  if (buttonId === 'terms_accept' || msgLower === 'terms_accept' || msgLower.includes('accept') || msgLower.includes('yes') || msgLower.includes('haan')) {
+    termsAccept = true
   }
 
   // STEP 2: Language selected
-  if (buttonId?.startsWith('lang_') || incomingMessage.startsWith('lang_')) {
-    const langCode = (buttonId ?? incomingMessage).replace('lang_', '') as Language
+  if (langSelect) {
     const validLangs: Language[] = ['en', 'hi', 'gu']
-    const lang = validLangs.includes(langCode) ? langCode : 'en'
+    const lang = validLangs.includes(langSelect) ? langSelect : 'en'
 
     // Save language
     await supabase.from('users').update({ language: lang }).eq('id', user.id)
@@ -65,14 +69,14 @@ export async function handleOnboarding(
     // Send T&C
     await sendWhatsAppMessage({
       to: phone,
-      message: termsMessage(lang),
+      message: termsMessage(lang) + "\n\nReply with 'Yes' or 'Accept' to continue.",
       buttons: termsButtons(lang)
     })
     return
   }
 
   // STEP 3: T&C accepted
-  if (buttonId === 'terms_accept' || incomingMessage === 'terms_accept') {
+  if (termsAccept) {
     const lang = (user.language as Language) ?? 'en'
 
     // Mark as onboarded
@@ -90,7 +94,7 @@ export async function handleOnboarding(
   }
 
   // T&C view policies
-  if (buttonId === 'terms_view') {
+  if (buttonId === 'terms_view' || msgLower.includes('view') || msgLower.includes('policy')) {
     await sendWhatsAppMessage({
       to: phone,
       message: `📄 Privacy Policy: https://yourapp.com/privacy\n📄 Terms of Use: https://yourapp.com/terms`
@@ -98,10 +102,10 @@ export async function handleOnboarding(
     return
   }
 
-  // Fallback — show welcome again
+  // If no match found and user hasn't selected language yet, or just sent a random message -> show language picker
   await sendWhatsAppMessage({
     to: phone,
-    message: welcomeMessage(),
+    message: welcomeMessage() + "\n\nPlease reply with 'English', 'Hindi', or 'Gujarati'.",
     buttons: welcomeButtons()
   })
 }
