@@ -50,28 +50,11 @@ export async function sendWhatsAppMessage(options: SendMessageOptions) {
     return { success: false, error: 'Credentials missing' }
   }
 
-  // 2. Prepare payload for 11za
-  // Note: 11za button API structure might vary, adjusting to common schema
-  // We'll use the legacy sender for text and extend for others
-  
+  // Temporary fallback: Since 11za's button API might have a different undocumented format,
+  // we will safely send buttons as purely text options using the reliable legacySender.
   if (buttons && buttons.length > 0) {
-    const payload = {
-        sendto: to,
-        authToken: authToken,
-        originWebsite: origin,
-        contentType: "button",
-        buttonData: {
-            title: message,
-            buttons: buttons.map(b => ({ id: b.id, title: b.title }))
-        }
-    };
-    
-    const res = await fetch("https://api.11za.in/apis/sendMessage/sendMessages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    });
-    return await res.json();
+    const textWithButtons = message + "\n\n" + buttons.map(b => `- ${b.title}`).join('\n')
+    return await legacySender(to, textWithButtons, authToken, origin)
   }
 
   if (mediaUrl) {
