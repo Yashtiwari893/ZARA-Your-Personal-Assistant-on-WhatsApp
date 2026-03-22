@@ -49,7 +49,6 @@ export async function handleSetReminder(params: {
       title,
       scheduled_at:     parsed.date?.toISOString(),
       recurrence:       parsed.recurrence,
-      recurrence_time:  parsed.recurrenceTime,
       status:           'pending'
     })
 
