@@ -55,6 +55,13 @@ export async function handleSaveDocument(params: {
   }
 
   if (!caption) {
+    // Label nahi mila — session mein pending_label state save karo
+    await supabase.from('sessions')
+      .upsert({
+        user_id: userId,
+        context: { pending_action: 'awaiting_label', document_path: path, doc_type: mediaType }
+      }, { onConflict: 'user_id' })
+
     await sendWhatsAppMessage({
       to: phone,
       message: language === 'hi'

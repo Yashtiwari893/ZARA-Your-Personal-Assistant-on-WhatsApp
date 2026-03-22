@@ -140,6 +140,40 @@ export async function POST(req: NextRequest) {
 
     if (!processedMessage?.trim()) return NextResponse.json({ ok: true })
 
+    // Session check — koi pending action hai?
+    const { data: session } = await supabase
+      .from('sessions')
+      .select('context')
+      .eq('user_id', user.id)
+      .single()
+
+    const ctx = session?.context as any
+
+    if (ctx?.pending_action === 'awaiting_label') {
+      // User ka next message = label hai
+      const label = processedMessage.trim()
+      
+      // Document ka label update karo
+      await supabase.from('documents')
+        .update({ label })
+        .eq('storage_path', ctx.document_path)
+        .eq('user_id', user.id)
+      
+      // Pending state clear karo
+      await supabase.from('sessions')
+        .update({ context: {} })
+        .eq('user_id', user.id)
+      
+      await sendWhatsAppMessage({
+        to: phone,
+        message: lang === 'hi'
+          ? `📁 *${label}* ke naam se save ho gaya!\n\n_"${label} dikhao" bolke wapas paa sakte ho._`
+          : `📁 Saved as *${label}*!\n\nYou can retrieve it by saying "show ${label}".`
+      })
+      
+      return NextResponse.json({ ok: true })
+    }
+
     // ── STEP 6: Intent Classification (Groq LPU) ─────────────
     const result = await classifyIntent(processedMessage, lang)
     const { intent, extractedData } = result
