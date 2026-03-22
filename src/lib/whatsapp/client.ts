@@ -78,14 +78,31 @@ export async function sendWhatsAppMessage(options: SendMessageOptions) {
       // If media fails, fallback to sending just the text/link via legacySender
       if (!res.ok) {
         console.error("11za Media Send Failed:", data);
-        return await legacySender(to, message + "\n\nLink: " + mediaUrl, authToken, origin);
+        const shortLink = await shortenUrl(mediaUrl);
+        return await legacySender(to, `${message}\n\nLink: ${shortLink}`, authToken, origin);
       }
       return data;
     } catch (err) {
       console.error("11za Fetch Error:", err);
-      return await legacySender(to, message + "\n\nLink: " + mediaUrl, authToken, origin);
+      const shortLink = await shortenUrl(mediaUrl).catch(() => mediaUrl);
+      return await legacySender(to, `${message}\n\nLink: ${shortLink}`, authToken, origin);
     }
   }
 
   return await legacySender(to, message, authToken, origin)
+}
+
+/**
+ * Shorten URL using TinyURL API
+ */
+async function shortenUrl(url: string): Promise<string> {
+  try {
+    const response = await fetch(`http://tinyurl.com/api-create.php?url=${encodeURIComponent(url)}`);
+    if (response.ok) {
+      return await response.text();
+    }
+  } catch (error) {
+    console.error("URL shortening failed:", error);
+  }
+  return url;
 }
