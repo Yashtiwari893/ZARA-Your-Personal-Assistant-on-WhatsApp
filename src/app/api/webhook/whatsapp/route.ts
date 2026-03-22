@@ -38,7 +38,7 @@ function parseWebhookPayload(body: any) {
   return {
     phone:     body?.from || '',
     to:        body?.to || '',
-    message:   body?.content?.text || '',
+    message:   body?.content?.text || body?.content?.media?.caption || '',
     buttonId:  body?.content?.button_id || null, // Hypothetical 11za button field
     mediaUrl:  body?.content?.media?.url || null,
     mediaType: body?.content?.contentType || 'text', // text | audio | media
