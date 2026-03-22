@@ -23,7 +23,7 @@ export interface STTResult {
  * Voice Note → Text using Groq Whisper
  * 11za API key se authenticated download
  */
-export async function speechToText(audioUrl: string): Promise<STTResult | null> {
+export async function speechToText(audioUrl: string, authToken?: string): Promise<STTResult | null> {
     let audioPath: string | null = null
 
     try {
@@ -36,11 +36,13 @@ export async function speechToText(audioUrl: string): Promise<STTResult | null> 
         console.log('[STT] Downloading audio:', audioUrl)
 
         // ── Download with 11za Auth header ───────────────────────
-        const res = await fetch(audioUrl, {
-            headers: {
-                'Authorization': `Bearer ${process.env.ELEVEN_ZA_API_KEY}`
-            }
-        })
+        const token = authToken || process.env.ELEVEN_ZA_API_KEY
+        const headers: Record<string, string> = {}
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`
+        }
+
+        const res = await fetch(audioUrl, { headers })
 
         // ── GUARDRAIL 2: Download fail check ──────────────────────
         if (!res.ok) {

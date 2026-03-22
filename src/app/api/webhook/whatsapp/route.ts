@@ -60,6 +60,14 @@ export async function POST(req: NextRequest) {
 
     if (!phone || !messageId) return NextResponse.json({ ok: true })
 
+    // ── STEP 0.5: Get Bot Credentials (needed for media download) ───
+    const { data: botCreds } = await supabaseAdmin
+      .from('phone_document_mapping')
+      .select('auth_token')
+      .eq('phone_number', to)
+      .limit(1)
+    const authToken = botCreds?.[0]?.auth_token || process.env.ELEVEN_ZA_API_KEY;
+
     // ── STEP 0: Log Message History (Same as existing code) ─────
     const { error: logErr } = await supabaseAdmin.from("whatsapp_messages").insert([
       {
@@ -106,7 +114,7 @@ export async function POST(req: NextRequest) {
     // ── STEP 4: Handle Voice to Text (Existing Groq Whisper) ─────
     let processedMessage = message
     if (mediaType === 'media' && (subType === 'voice' || subType === 'audio') && mediaUrl) {
-      const stt = await speechToText(mediaUrl)
+      const stt = await speechToText(mediaUrl, authToken)
       processedMessage = stt?.text || message
       console.log('🎙 Transcribed Voice:', processedMessage)
     }
@@ -120,7 +128,8 @@ export async function POST(req: NextRequest) {
         language: lang,
         mediaUrl: mediaUrl!,
         mediaType: subType === 'document' ? 'application/pdf' : 'image/jpeg',
-        caption: processedMessage || undefined
+        caption: processedMessage || undefined,
+        authToken: authToken
       })
       return NextResponse.json({ ok: true })
     }

@@ -30,8 +30,9 @@ export async function handleSaveDocument(params: {
   mediaUrl: string
   mediaType: string
   caption?: string
+  authToken?: string
 }) {
-  const { userId, phone, language, mediaUrl, mediaType, caption } = params
+  const { userId, phone, language, mediaUrl, mediaType, caption, authToken } = params
 
   // ── GUARDRAIL 1: Supported type check ─────────────────────
   const normalizedType = mediaType.split(';')[0].trim().toLowerCase()
@@ -46,7 +47,7 @@ export async function handleSaveDocument(params: {
   }
 
   // ── Download with 11za Auth ────────────────────────────────
-  const mediaBuffer = await downloadMedia(mediaUrl)
+  const mediaBuffer = await downloadMedia(mediaUrl, authToken)
 
   // ── GUARDRAIL 2: Download fail ─────────────────────────────
   if (!mediaBuffer) {
@@ -361,13 +362,15 @@ export async function handleDeleteDocument(params: {
 
 // ─── HELPERS ──────────────────────────────────────────────────
 
-async function downloadMedia(url: string): Promise<Buffer | null> {
+async function downloadMedia(url: string, authToken?: string): Promise<Buffer | null> {
   try {
-    const res = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${process.env.ELEVEN_ZA_API_KEY}`
-      }
-    })
+    const token = authToken || process.env.ELEVEN_ZA_API_KEY
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    const res = await fetch(url, { headers })
     if (!res.ok) {
       console.error(`[document] Download failed: ${res.status} ${res.statusText}`)
       return null
