@@ -63,7 +63,7 @@ export async function sendWhatsAppMessage(options: SendMessageOptions) {
         authToken: authToken,
         originWebsite: origin,
         contentType: mediaType === 'document' ? 'document' : 'image',
-        [mediaType === 'document' ? 'documentUrl' : 'imageUrl']: mediaUrl,
+        myfile: mediaUrl,
         caption: message
     };
     
