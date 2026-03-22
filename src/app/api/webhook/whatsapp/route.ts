@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { classifyIntent } from '@/lib/ai/intent'
 import { getOrCreateUser, handleOnboarding } from '@/lib/features/onboarding'
-import { 
-  handleSetReminder, 
-  handleListReminders, 
-  handleSnoozeReminder, 
-  handleCancelReminder, 
-  handleReminderDone 
+import {
+  handleSetReminder,
+  handleListReminders,
+  handleSnoozeReminder,
+  handleCancelReminder,
+  handleReminderDone
 } from '@/lib/features/reminder'
-import { 
-  handleAddTask, 
-  handleListTasks, 
-  handleCompleteTask, 
-  handleListAllLists 
+import {
+  handleAddTask,
+  handleListTasks,
+  handleCompleteTask,
+  handleListAllLists
 } from '@/lib/features/task'
-import { 
-  handleSaveDocument, 
-  handleFindDocument, 
-  handleListDocuments 
+import {
+  handleSaveDocument,
+  handleFindDocument,
+  handleListDocuments
 } from '@/lib/features/document'
 import { handleGetBriefing } from '@/lib/features/briefing'
 import { helpMessage } from '@/lib/whatsapp/templates'
@@ -36,16 +36,16 @@ const supabaseAdmin = createClient(
 // ─── 11ZA WEBHOOK PAYLOAD PARSER ──────────────────────────
 function parseWebhookPayload(body: any) {
   return {
-    phone:     body?.from || '',
-    to:        body?.to || '',
-    message:   body?.content?.text || body?.content?.media?.caption || '',
-    buttonId:  body?.content?.button_id || null, // Hypothetical 11za button field
-    mediaUrl:  body?.content?.media?.url || null,
+    phone: body?.from || '',
+    to: body?.to || '',
+    message: body?.content?.text || body?.content?.media?.caption || '',
+    buttonId: body?.content?.button_id || null, // Hypothetical 11za button field
+    mediaUrl: body?.content?.media?.url || null,
     mediaType: body?.content?.contentType || 'text', // text | audio | media
-    subType:   body?.content?.media?.type || null,  // voice | image | document
+    subType: body?.content?.media?.type || null,  // voice | image | document
     messageId: body?.messageId || '',
-    name:      body?.whatsapp?.senderName || null,
-    event:     body?.event || 'MoMessage'
+    name: body?.whatsapp?.senderName || null,
+    event: body?.event || 'MoMessage'
   }
 }
 
@@ -53,34 +53,34 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     console.log('📩 WhatsApp Webhook Payload:', JSON.stringify(body, null, 2))
-    
-    const { 
-      phone, to, message, buttonId, mediaUrl, mediaType, subType, messageId, name, event 
+
+    const {
+      phone, to, message, buttonId, mediaUrl, mediaType, subType, messageId, name, event
     } = parseWebhookPayload(body)
 
     if (!phone || !messageId) return NextResponse.json({ ok: true })
 
     // ── STEP 0: Log Message History (Same as existing code) ─────
     const { error: logErr } = await supabaseAdmin.from("whatsapp_messages").insert([
-        {
-            message_id: messageId,
-            channel: "whatsapp",
-            from_number: phone,
-            to_number: to,
-            received_at: new Date().toISOString(),
-            content_type: mediaType,
-            content_text: message || null,
-            sender_name: name,
-            event_type: event,
-            is_in_24_window: true,
-            is_responded: false,
-            raw_payload: body,
-        },
+      {
+        message_id: messageId,
+        channel: "whatsapp",
+        from_number: phone,
+        to_number: to,
+        received_at: new Date().toISOString(),
+        content_type: mediaType,
+        content_text: message || null,
+        sender_name: name,
+        event_type: event,
+        is_in_24_window: true,
+        is_responded: false,
+        raw_payload: body,
+      },
     ]);
 
     if (logErr && (logErr as any).code === "23505") {
-        console.log("ℹ️ Duplicate message ignored");
-        return NextResponse.json({ ok: true });
+      console.log("ℹ️ Duplicate message ignored");
+      return NextResponse.json({ ok: true });
     }
 
     // Only handle incoming user messages
@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
 
     // ── STEP 1: Get or Create User ──────────────────────────────
     const user = await getOrCreateUser(phone)
+    if (!user) return NextResponse.json({ ok: true })
     if (name && !user.name) {
       await supabaseAdmin.from('users').update({ name }).eq('id', user.id)
     }
@@ -138,25 +139,25 @@ export async function POST(req: NextRequest) {
     if (ctx?.pending_action === 'awaiting_label') {
       // User ka next message = label hai
       const label = processedMessage.trim()
-      
+
       // Document ka label update karo
       await supabaseAdmin.from('documents')
         .update({ label })
         .eq('storage_path', ctx.document_path)
         .eq('user_id', user.id)
-      
+
       // Pending state clear karo
       await supabaseAdmin.from('sessions')
         .update({ context: {} })
         .eq('user_id', user.id)
-      
+
       await sendWhatsAppMessage({
         to: phone,
         message: lang === 'hi'
           ? `📁 *${label}* ke naam se save ho gaya!\n\n_"${label} dikhao" bolke wapas paa sakte ho._`
           : `📁 Saved as *${label}*!\n\nYou can retrieve it by saying "show ${label}".`
       })
-      
+
       return NextResponse.json({ ok: true })
     }
 
@@ -186,9 +187,9 @@ export async function POST(req: NextRequest) {
 
       case 'SNOOZE_REMINDER':
         await handleSnoozeReminder({
-          userId: user.id, 
-          phone, 
-          language: lang, 
+          userId: user.id,
+          phone,
+          language: lang,
           customText: extractedData.dateTimeText ?? processedMessage
         })
         break
@@ -197,7 +198,7 @@ export async function POST(req: NextRequest) {
         await handleAddTask({
           userId: user.id, phone, language: lang,
           taskContent: extractedData.taskContent ?? processedMessage,
-          listName:    extractedData.listName ?? 'general'
+          listName: extractedData.listName ?? 'general'
         })
         break
 
@@ -213,7 +214,7 @@ export async function POST(req: NextRequest) {
         await handleCompleteTask({
           userId: user.id, phone, language: lang,
           taskContent: extractedData.taskContent ?? processedMessage,
-          listName:    extractedData.listName
+          listName: extractedData.listName
         })
         break
 
