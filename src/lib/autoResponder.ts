@@ -1,7 +1,4 @@
 import { supabase } from "./supabaseClient";
-import { embedText } from "./embeddings";
-import { retrieveRelevantChunksFromFiles } from "./retrieval";
-import { getFilesForPhoneNumber } from "./phoneMapping";
 import { sendWhatsAppMessage } from "./whatsappSender";
 import Groq from "groq-sdk";
 
@@ -47,36 +44,39 @@ export async function generateAutoResponse(
 
         console.log("🔎 Phone lookup", { cleanFrom, cleanTo });
 
-        /* 1️⃣ FILES */
-        const fileIds = await getFilesForPhoneNumber(cleanTo);
-
-        if (!fileIds || fileIds.length === 0) {
-            console.warn("⚠️ No documents mapped to phone:", cleanTo);
-            return { success: false, noDocuments: true };
-        }
-
         /* 2️⃣ PHONE CONFIG */
-        const { data: phoneMappings, error: mappingError } = await supabase
-            .from("phone_document_mapping")
+        let systemPromptBase = ""
+        let auth_token = process.env.WHATSAPP_AUTH_TOKEN || ""
+        let origin = process.env.WHATSAPP_ORIGIN || ""
+
+        // Try exact match first
+        let query = supabase.from("phone_document_mapping")
             .select("system_prompt, intent, auth_token, origin")
             .eq("phone_number", cleanTo)
             .limit(1);
+            
+        let { data: phoneMappings } = await query;
 
-        if (mappingError || !phoneMappings || phoneMappings.length === 0) {
-            console.error("❌ Phone config missing", mappingError);
-            return { success: false, error: "Phone config missing" };
+        // Fallback to any mapping if exact match fails
+        if (!phoneMappings || phoneMappings.length === 0) {
+            const { data: fallbackMappings } = await supabase.from("phone_document_mapping")
+                .select("system_prompt, intent, auth_token, origin")
+                .limit(1);
+            phoneMappings = fallbackMappings;
         }
 
-        const mapping = phoneMappings[0];
-
-        const systemPromptBase = safeString(mapping.system_prompt);
-        const auth_token = safeString(mapping.auth_token);
-        const origin = safeString(mapping.origin);
+        if (phoneMappings && phoneMappings.length > 0) {
+            const mapping = phoneMappings[0];
+            systemPromptBase = safeString(mapping.system_prompt) || systemPromptBase;
+            auth_token = safeString(mapping.auth_token) || auth_token;
+            origin = safeString(mapping.origin) || origin;
+        }
 
         if (!auth_token || !origin) {
+            console.error("❌ WhatsApp API credentials missing");
             return {
                 success: false,
-                error: "WhatsApp API credentials missing for this phone number",
+                error: "WhatsApp API credentials missing for auto-responder",
             };
         }
 
@@ -86,25 +86,7 @@ export async function generateAutoResponse(
             return { success: false, error: "Empty message" };
         }
 
-        /* 4️⃣ EMBEDDING */
-        const embedding = await embedText(userText);
-        if (!embedding) {
-            return { success: false, error: "Embedding generation failed" };
-        }
-
-        /* 5️⃣ RAG */
-        const matches = await retrieveRelevantChunksFromFiles(
-            embedding,
-            fileIds,
-            5
-        );
-
-        const contextText =
-            matches && matches.length > 0
-                ? matches.map(m => m.chunk).join("\n\n")
-                : "NO_RELEVANT_INFORMATION";
-
-        /* 6️⃣ HISTORY */
+        /* 4️⃣ HISTORY */
         const { data: historyRows } = await supabase
             .from("whatsapp_messages")
             .select("content_text, event_type")
@@ -122,27 +104,25 @@ export async function generateAutoResponse(
                 content: m.content_text,
             })) ?? [];
 
-        /* 7️⃣ SYSTEM PROMPT */
+        /* 5️⃣ SYSTEM PROMPT */
         const documentRules = `
-You must ONLY answer using the document context.
+You are 11za, a smart and friendly personal assistant on WhatsApp.
 
 STRICT RULES:
-- Use ONLY the CONTEXT below
-- If answer not found, say: "I don't have that information in the document"
-- No assumptions
-- No external knowledge
-- Short WhatsApp-style replies
-- Max 5 lines
+- Act like a human friend
+- Answer general knowledge questions naturally (Weather, recipes, general facts)
+- Keep replies short, conversational, and WhatsApp-style (1-3 lines max)
+- Reply in the language the user is speaking (e.g. Hindi, Hinglish, English)
 `.trim();
 
         const systemPrompt = systemPromptBase
             ? `${systemPromptBase}\n\n${documentRules}`
-            : `You are a helpful WhatsApp assistant.\n\n${documentRules}`;
+            : `${documentRules}`;
 
         const messages = [
             {
                 role: "system" as const,
-                content: `${systemPrompt}\n\nCONTEXT:\n${contextText}`,
+                content: systemPrompt,
             },
             ...history.slice(-10),
             { role: "user" as const, content: userText },
