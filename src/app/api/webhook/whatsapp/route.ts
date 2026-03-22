@@ -110,8 +110,8 @@ export async function POST(req: NextRequest) {
       console.log('🎙 Transcribed Voice:', processedMessage)
     }
 
-    // ── STEP 5: Handle Media for Vault (Step 4 of plan) ─────────
-    if (mediaType === 'media' && (subType === 'image' || subType === 'document')) {
+    // ── STEP 5: Handle Media for Vault ─────────
+    if (mediaUrl && (mediaType === 'media' || mediaType === 'image' || mediaType === 'document' || subType === 'image' || subType === 'document')) {
       await handleSaveDocument({
         userId: user.id,
         phone,

@@ -66,12 +66,25 @@ export async function sendWhatsAppMessage(options: SendMessageOptions) {
         [mediaType === 'document' ? 'documentUrl' : 'imageUrl']: mediaUrl,
         caption: message
     };
-    const res = await fetch("https://api.11za.in/apis/sendMessage/sendMessages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-    });
-    return await res.json();
+    
+    try {
+      const res = await fetch("https://api.11za.in/apis/sendMessage/sendMessages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      // If media fails, fallback to sending just the text/link via legacySender
+      if (!res.ok) {
+        console.error("11za Media Send Failed:", data);
+        return await legacySender(to, message + "\n\nLink: " + mediaUrl, authToken, origin);
+      }
+      return data;
+    } catch (err) {
+      console.error("11za Fetch Error:", err);
+      return await legacySender(to, message + "\n\nLink: " + mediaUrl, authToken, origin);
+    }
   }
 
   return await legacySender(to, message, authToken, origin)

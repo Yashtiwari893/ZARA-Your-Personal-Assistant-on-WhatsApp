@@ -94,7 +94,7 @@ export async function handleFindDocument(params: {
 
   // Clean up common conversational words
   const cleanQuery = query.toLowerCase()
-    .replace(/\b(mera|meri|mujhe|dikhao|wala|wali|card|copy|pdf|photo|chahiye|find|my|the)\b/g, '')
+    .replace(/\b(mera|meri|mujhe|de|do|dikhao|wala|wali|card|copy|pdf|photo|chahiye|find|my|the|show|give|me|document|vault|nikalo|check)\b/g, '')
     .trim()
   
   const finalQuery = cleanQuery || query.trim()
