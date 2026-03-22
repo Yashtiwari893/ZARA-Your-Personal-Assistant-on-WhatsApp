@@ -24,8 +24,14 @@ import { helpMessage } from '@/lib/whatsapp/templates'
 import { sendWhatsAppMessage } from '@/lib/whatsapp/client'
 import { speechToText } from '@/lib/speechToText'
 import { generateAutoResponse } from '@/lib/autoResponder'
-import { supabase } from '@/lib/supabaseClient'
+import { createClient } from '@supabase/supabase-js'
 import type { Language } from '@/lib/whatsapp/templates'
+
+// Use admin client in server contexts to bypass RLS
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 // ─── 11ZA WEBHOOK PAYLOAD PARSER ──────────────────────────
 function parseWebhookPayload(body: any) {
@@ -55,7 +61,7 @@ export async function POST(req: NextRequest) {
     if (!phone || !messageId) return NextResponse.json({ ok: true })
 
     // ── STEP 0: Log Message History (Same as existing code) ─────
-    const { error: logErr } = await supabase.from("whatsapp_messages").insert([
+    const { error: logErr } = await supabaseAdmin.from("whatsapp_messages").insert([
         {
             message_id: messageId,
             channel: "whatsapp",
@@ -83,7 +89,7 @@ export async function POST(req: NextRequest) {
     // ── STEP 1: Get or Create User ──────────────────────────────
     const user = await getOrCreateUser(phone)
     if (name && !user.name) {
-      await supabase.from('users').update({ name }).eq('id', user.id)
+      await supabaseAdmin.from('users').update({ name }).eq('id', user.id)
     }
 
     const lang = (user.language as Language) ?? 'en'
@@ -120,7 +126,7 @@ export async function POST(req: NextRequest) {
     if (!processedMessage?.trim()) return NextResponse.json({ ok: true })
 
     // Session check — koi pending action hai?
-    const { data: session } = await supabase
+    const { data: session } = await supabaseAdmin
       .from('sessions')
       .select('context')
       .eq('user_id', user.id)
@@ -133,13 +139,13 @@ export async function POST(req: NextRequest) {
       const label = processedMessage.trim()
       
       // Document ka label update karo
-      await supabase.from('documents')
+      await supabaseAdmin.from('documents')
         .update({ label })
         .eq('storage_path', ctx.document_path)
         .eq('user_id', user.id)
       
       // Pending state clear karo
-      await supabase.from('sessions')
+      await supabaseAdmin.from('sessions')
         .update({ context: {} })
         .eq('user_id', user.id)
       

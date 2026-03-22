@@ -56,11 +56,17 @@ export async function handleSaveDocument(params: {
 
   if (!caption) {
     // Label nahi mila — session mein pending_label state save karo
-    await supabase.from('sessions')
-      .upsert({
-        user_id: userId,
-        context: { pending_action: 'awaiting_label', document_path: path, doc_type: mediaType }
-      }, { onConflict: 'user_id' })
+    const sessionObj = { pending_action: 'awaiting_label', document_path: path, doc_type: mediaType }
+    
+    // Fallback safe update/insert logic instead of strict onConflict upsert
+    const { data: existingSession } = await supabase.from('sessions').select('id').eq('user_id', userId).single()
+    if (existingSession) {
+      const { error: sessionErr } = await supabase.from('sessions').update({ context: sessionObj }).eq('id', existingSession.id)
+      if (sessionErr) console.error("Session UPDATE Error:", sessionErr)
+    } else {
+      const { error: sessionErr } = await supabase.from('sessions').insert({ user_id: userId, context: sessionObj })
+      if (sessionErr) console.error("Session INSERT Error:", sessionErr)
+    }
 
     await sendWhatsAppMessage({
       to: phone,
