@@ -174,11 +174,7 @@ export async function handleListDocuments(params: {
 // ─── HELPERS ──────────────────────────────────────────────────
 async function downloadMedia(url: string): Promise<Buffer | null> {
   try {
-    const res = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${process.env.ELEVEN_ZA_API_KEY}`
-      }
-    })
+    const res = await fetch(url)
     if (!res.ok) return null
     const arrayBuffer = await res.arrayBuffer()
     return Buffer.from(arrayBuffer)

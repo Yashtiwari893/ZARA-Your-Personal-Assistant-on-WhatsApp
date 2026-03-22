@@ -16,11 +16,7 @@ export async function speechToText(
     try {
         console.log("⬇️ Downloading audio:", audioUrl);
 
-        const res = await fetch(audioUrl, {
-            headers: {
-                'Authorization': `Bearer ${process.env.ELEVEN_ZA_API_KEY}`
-            }
-        });
+        const res = await fetch(audioUrl);
         if (!res.ok) throw new Error("Audio download failed");
 
         const buffer = Buffer.from(await res.arrayBuffer());
