@@ -86,10 +86,27 @@ export async function handleFindDocument(params: {
 }) {
   const { userId, phone, language, query } = params
 
-  const { data: results, error } = await supabase.rpc('search_documents', {
-    p_user_id: userId,
-    p_query:   query
-  })
+  // Clean up common conversational words
+  const cleanQuery = query.toLowerCase()
+    .replace(/\b(mera|meri|mujhe|dikhao|wala|wali|card|copy|pdf|photo|chahiye|find|my|the)\b/g, '')
+    .trim()
+  
+  const finalQuery = cleanQuery || query.trim()
+  const words = finalQuery.split(/\s+/).filter(Boolean)
+
+  if (words.length === 0) {
+    words.push(query.trim())
+  }
+
+  // Create an OR string for Supabase: "label.ilike.%term1%,label.ilike.%term2%"
+  const orConditions = words.map(w => `label.ilike.%${w}%`).join(',')
+
+  const { data: results, error } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('user_id', userId)
+    .or(orConditions)
+    .order('uploaded_at', { ascending: false })
 
   if (error || !results || results.length === 0) {
     await sendWhatsAppMessage({
@@ -157,7 +174,11 @@ export async function handleListDocuments(params: {
 // ─── HELPERS ──────────────────────────────────────────────────
 async function downloadMedia(url: string): Promise<Buffer | null> {
   try {
-    const res = await fetch(url)
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${process.env.ELEVEN_ZA_API_KEY}`
+      }
+    })
     if (!res.ok) return null
     const arrayBuffer = await res.arrayBuffer()
     return Buffer.from(arrayBuffer)

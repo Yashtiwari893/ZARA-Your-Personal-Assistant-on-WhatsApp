@@ -95,27 +95,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // ── STEP 3: Handle Button Taps ─────────────────────────────
-    if (buttonId) {
-      if (buttonId.startsWith('lang_') || buttonId.startsWith('terms_')) {
-        await handleOnboarding(user, message, buttonId)
-        return NextResponse.json({ ok: true })
-      }
-      
-      if (buttonId.startsWith('snooze_')) {
-        const parts = buttonId.split('_')
-        const minutes = parseInt(parts[1])
-        const reminderId = parts.slice(2).join('_')
-        await handleSnoozeReminder({ reminderId, phone, language: lang, minutes })
-        return NextResponse.json({ ok: true })
-      }
-      
-      if (buttonId.startsWith('done_')) {
-        const reminderId = buttonId.replace('done_', '')
-        await handleReminderDone({ reminderId, phone, language: lang })
-        return NextResponse.json({ ok: true })
-      }
-    }
 
     // ── STEP 4: Handle Voice to Text (Existing Groq Whisper) ─────
     let processedMessage = message
@@ -196,6 +175,15 @@ export async function POST(req: NextRequest) {
 
       case 'CANCEL_REMINDER':
         await handleListReminders({ userId: user.id, phone, language: lang }) // Show list first
+        break
+
+      case 'SNOOZE_REMINDER':
+        await handleSnoozeReminder({
+          userId: user.id, 
+          phone, 
+          language: lang, 
+          customText: extractedData.dateTimeText ?? processedMessage
+        })
         break
 
       case 'ADD_TASK':

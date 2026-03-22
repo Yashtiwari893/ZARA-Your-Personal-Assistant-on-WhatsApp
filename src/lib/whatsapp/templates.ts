@@ -2,40 +2,9 @@ export type Language = 'en' | 'hi' | 'gu'
 
 // ─── ONBOARDING ───────────────────────────────────────────────
 export function welcomeMessage(): string {
-  return `Hey! 👋 I'm *SAM* — your personal assistant on WhatsApp.
+  return `Hey! 👋 I'm *11za* — your personal assistant on WhatsApp.
 
-You can send me messages or voice notes in *any language* and I'll understand!
-
-Which language should I reply in?`
-}
-
-export function welcomeButtons() {
-  return [
-    { id: 'lang_en', title: '🇬🇧 English' },
-    { id: 'lang_hi', title: '🇮🇳 हिन्दी' },
-    { id: 'lang_gu', title: '🇮🇳 ગુજરાતી' },
-  ]
-}
-
-export function termsMessage(lang: Language): string {
-  const msgs: Record<Language, string> = {
-    en: `*Terms & Privacy*\n\nBy using SAM, you agree to our Terms of Use and Privacy Policy.\n\nYour data is safe with us. 🔒`,
-    hi: `*नियम और गोपनीयता*\n\nSAM का उपयोग करके, आप हमारी शर्तों से सहमत हैं।\n\nआपका डेटा सुरक्षित है। 🔒`,
-    gu: `*નિયમો અને ગોપનીયતા*\n\nSAM નો ઉપયોગ કરીને, આપ અમારી શરતો સ્વીકારો છો।\n\nઆપનો ડેટા સુરક્ષિત છે. 🔒`,
-  }
-  return msgs[lang]
-}
-
-export function termsButtons(lang: Language) {
-  const labels: Record<Language, [string, string]> = {
-    en: ['✅ Accept & Continue', '📄 View Policies'],
-    hi: ['✅ स्वीकार करें', '📄 नीतियां देखें'],
-    gu: ['✅ સ્વીકાર કરો', '📄 નીતિ જુઓ'],
-  }
-  return [
-    { id: 'terms_accept', title: labels[lang][0] },
-    { id: 'terms_view',   title: labels[lang][1] },
-  ]
+You can send me messages or voice notes in *any language* and I'll understand!`
 }
 
 export function onboardingComplete(name: string, lang: Language): string {
@@ -75,13 +44,6 @@ export function reminderAlert(
   return msgs[lang]
 }
 
-export function reminderAlertButtons(reminderId: string) {
-  return [
-    { id: `snooze_10_${reminderId}`,  title: '⏱ Snooze 10 min' },
-    { id: `snooze_30_${reminderId}`,  title: '⏱ Snooze 30 min' },
-    { id: `done_${reminderId}`,       title: '✅ Done' },
-  ]
-}
 
 export function reminderSnoozed(humanReadable: string, lang: Language): string {
   const msgs: Record<Language, string> = {

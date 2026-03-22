@@ -100,13 +100,38 @@ export async function handleListReminders(params: {
 
 // ─── SNOOZE REMINDER ──────────────────────────────────────────
 export async function handleSnoozeReminder(params: {
-  reminderId: string
+  reminderId?: string
+  userId?: string
   phone: string
   language: Language
   minutes?: number          
   customText?: string       
 }) {
-  const { reminderId, phone, language, minutes, customText } = params
+  const { reminderId, userId, phone, language, minutes, customText } = params
+
+  let targetReminderId = reminderId
+
+  // If no reminderId is provided (conversational flow), find the most recently sent/pending reminder
+  if (!targetReminderId && userId) {
+    const { data: recent } = await supabase
+      .from('reminders')
+      .select('id')
+      .eq('user_id', userId)
+      .in('status', ['sent', 'pending'])
+      .order('scheduled_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (recent) targetReminderId = recent.id
+  }
+
+  if (!targetReminderId) {
+    await sendWhatsAppMessage({
+      to: phone,
+      message: language === 'hi' ? '🤔 Mujhe koi recent reminder nahi mila jise snooze kar saku.' : '🤔 I could not find a recent reminder to snooze.'
+    })
+    return
+  }
 
   let newTime: Date
 
@@ -125,13 +150,17 @@ export async function handleSnoozeReminder(params: {
     }
     newTime = parsed.date
   } else {
+    // Default snooze is 15 minutes in conversational flow
     newTime = new Date(Date.now() + 15 * 60 * 1000)
   }
 
   await supabase.rpc('snooze_reminder', {
-    p_reminder_id: reminderId,
+    p_reminder_id: targetReminderId,
     p_new_time:    newTime.toISOString()
   })
+
+  // Since we snoozed it, we should ensure the status is changed back to pending
+  await supabase.from('reminders').update({ status: 'pending' }).eq('id', targetReminderId)
 
   const humanReadable = newTime.toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
