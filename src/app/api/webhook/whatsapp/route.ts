@@ -111,7 +111,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ── STEP 5: Handle Media for Vault ─────────
-    if (mediaUrl && (mediaType === 'media' || mediaType === 'image' || mediaType === 'document' || subType === 'image' || subType === 'document')) {
+    const isImageOrDoc = mediaType === 'image' || mediaType === 'document' || subType === 'image' || subType === 'document';
+    if (mediaUrl && isImageOrDoc && subType !== 'voice' && subType !== 'audio') {
       await handleSaveDocument({
         userId: user.id,
         phone,
